@@ -1,0 +1,78 @@
+# Development config sample for running the app container against a MySQL server
+# installed on the host machine.
+#
+# Copy this file to:
+#   deploy/config.local-mysql.docker.yaml
+#
+# The copied file is ignored by git and can contain local passwords.
+#
+# macOS / Docker Desktop:
+#   host.docker.internal resolves to the host machine.
+#
+# If you run the backend directly on the host instead of Docker, use
+# host: "127.0.0.1" in your local config.yaml.
+
+database:
+  type: mysql
+  url: ""
+  host: "host.docker.internal"
+  port: 3306
+  database: "academic_support"
+  username: "root"
+  password: "your-local-password"
+  pool_size: 5
+  max_overflow: 10
+  pool_recycle: 3600
+  pool_pre_ping: true
+
+jwt:
+  secret_key: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+
+cors:
+  allowed_origins:
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"
+    - "http://localhost:8002"
+    - "http://127.0.0.1:8002"
+
+admin:
+  default_username: "admin"
+  default_password: "CHANGE_ME_ADMIN_PASSWORD"
+
+ai:
+  api_key: "your-api-key-here"
+  base_url: "https://api.deepseek.com/v1"
+  model: "deepseek-v4-pro"
+  temperature: 0.7
+  max_tokens: 32000
+
+oauth:
+  base_url: "https://curyian.com"
+  payment_base_url: "https://www.keyan.asia"
+  client_id: "your_client_id"
+  client_secret: "your_client_secret"
+  redirect_uri: "http://localhost:5173/oauth/callback"
+  payment_return_url: "http://localhost:5173/payment/return"
+  products_path: "/oauth/as-platform-product"
+  trust_env: false
+  purchase_url: ""
+  auto_provision_token: false
+  user_session_expires_hours: 24
+  default_ai_quota: 1000000.0
+  default_permissions: "bio,ai"
+  default_token_expires_days: null
+      name: "基础套餐"
+      description: "购买后开通分析功能"
+      price_label: "请配置价格"
+
+server:
+  host: "0.0.0.0"
+  port: 8002
+  reload: true
+
+domain_routes: {}
+
+static:
+  html_dir: "html"

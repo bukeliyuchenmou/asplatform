@@ -302,7 +302,7 @@ export const BIO_TOOLS: BioTool[] = [
     chartType: 'histogram',
     parameters: [
       {
-        key: 'xColumn',
+        key: 'valueColumn',
         label: '数值列',
         type: 'columnSelect',
         required: true,

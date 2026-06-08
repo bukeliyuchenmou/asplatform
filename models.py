@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, Float, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from utils.timezone import local_now
 from database import Base
 
 class UserGroup(Base):
@@ -29,14 +29,74 @@ class TokenRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     token = Column(String(255), unique=True, index=True)
     name = Column(String(255))
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    external_user_id = Column(Integer, nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=local_now)
     expires_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
-    ai_quota = Column(Integer, default=1000000) # Total token count allowed (input + output tokens)
-    used_quota = Column(Integer, default=0) # Total tokens used (input + output tokens)
+    ai_quota = Column(Float, default=1000000.0) # Total credits allowed
+    used_quota = Column(Float, default=0.0) # Total credits used
     permissions = Column(String(255), default="all") # Comma separated permissions: "bio,ai"
     
     projects = relationship("ThesisProject", back_populates="token_owner")
+
+class ExternalUser(Base):
+    __tablename__ = "external_users"
+    __table_args__ = (
+        UniqueConstraint("provider", "openid", name="uq_external_users_provider_openid"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String(64), default="biyu", index=True)
+    openid = Column(String(255), index=True)
+    entitlement_level = Column(String(64), default="experience")
+    metadata_info = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=local_now)
+    updated_at = Column(DateTime(timezone=True), default=local_now, onupdate=local_now)
+
+class OAuthUserSession(Base):
+    __tablename__ = "oauth_user_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    user_token = Column(String(255), unique=True, index=True)
+    external_user_id = Column(Integer, nullable=True, index=True)
+    openid = Column(String(255), index=True)
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=local_now)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+class PaymentOrder(Base):
+    __tablename__ = "payment_orders"
+    id = Column(Integer, primary_key=True, index=True)
+    third_order_no = Column(String(128), unique=True, index=True)
+    external_user_id = Column(Integer, nullable=True, index=True)
+    openid = Column(String(255), index=True)
+    product_id = Column(String(255), index=True)
+    request_id = Column(String(255), nullable=True)
+    pay_url = Column(Text, nullable=True)
+    status = Column(String(32), default="pending", index=True)
+    state = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=local_now)
+    updated_at = Column(DateTime(timezone=True), default=local_now, onupdate=local_now)
+
+class PaymentOrderEntitlement(Base):
+    __tablename__ = "payment_order_entitlements"
+    id = Column(Integer, primary_key=True, index=True)
+    third_order_no = Column(String(128), unique=True, index=True)
+    external_user_id = Column(Integer, nullable=True, index=True)
+    openid = Column(String(255), index=True)
+    product_id = Column(String(255), index=True)
+    product_slug = Column(String(64), nullable=True, index=True)
+    product_name = Column(String(255), nullable=True)
+    product_price = Column(Float, nullable=True)
+    product_quota = Column(Float, nullable=True)
+    duration_days = Column(Integer, nullable=True)
+    product_snapshot = Column(Text, nullable=True)
+    paid_amount = Column(Float, nullable=True)
+    paid_at = Column(String(64), nullable=True)
+    notify_payload = Column(Text, nullable=True)
+    issued_token_id = Column(Integer, nullable=True, index=True)
+    issued_ai_quota = Column(Float, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=local_now)
+    updated_at = Column(DateTime(timezone=True), default=local_now, onupdate=local_now)
 
 class ThesisProject(Base):
     __tablename__ = "thesis_projects"
@@ -53,8 +113,8 @@ class ThesisProject(Base):
     current_step = Column(Integer, default=1)
     reference_files = Column(Text, nullable=True)  # JSON: list of verified reference metadata
     style_example_file = Column(Text, nullable=True)  # JSON: style example metadata
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=local_now)
+    updated_at = Column(DateTime(timezone=True), default=local_now, onupdate=local_now)
     
     token_owner = relationship("TokenRecord", back_populates="projects")
     admin_owner = relationship("AdminUser")
@@ -67,6 +127,6 @@ class ThesisStep(Base):
     step_num = Column(Integer)
     content = Column(Text) # JSON or markdown content
     metadata_info = Column(Text) # JSON string for extra info like references
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=local_now)
     
     project = relationship("ThesisProject", back_populates="steps")

@@ -291,7 +291,7 @@ function getEffectiveParamType(param: BioToolParameter): BioToolParameter['type'
 
 export default function BioPanel({ tool, onResult }: BioPanelProps) {
   const { serviceToken } = useServiceToken();
-  const { parsedData, columns, error: parseError, parse, parseWorkbook, clear } = useDataParser();
+  const { parsedData, columns, error: parseError, parse, parseWorkbook, clear, fail } = useDataParser();
   const [activeTab, setActiveTab] = useState<string>('paste');
   const [pastedText, setPastedText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -327,14 +327,26 @@ export default function BioPanel({ tool, onResult }: BioPanelProps) {
       reader.onload = (e) => {
         const result = e.target?.result;
         if (isWorkbook && result instanceof ArrayBuffer) {
-          parseWorkbook(result, file.name);
-          message.success(`已加载文件: ${file.name}`);
+          const ok = parseWorkbook(result, file.name);
+          if (ok) {
+            message.success(`已加载文件: ${file.name}`);
+          } else {
+            message.error(`文件解析失败: ${file.name}`);
+          }
         } else if (typeof result === 'string') {
-          parse(result);
-          message.success(`已加载文件: ${file.name}`);
+          const ok = parse(result);
+          if (ok) {
+            message.success(`已加载文件: ${file.name}`);
+          } else {
+            message.error(`文件解析失败: ${file.name}`);
+          }
+        } else {
+          fail('文件内容读取异常，无法解析', file.name);
+          message.error(`文件解析失败: ${file.name}`);
         }
       };
       reader.onerror = () => {
+        fail('文件读取失败', file.name);
         message.error('文件读取失败');
       };
       if (isWorkbook) {
@@ -344,7 +356,7 @@ export default function BioPanel({ tool, onResult }: BioPanelProps) {
       }
       return false; // Prevent auto upload
     },
-    [parse, parseWorkbook],
+    [parse, parseWorkbook, fail],
   );
 
   const handlePasteParse = useCallback(() => {
@@ -352,8 +364,12 @@ export default function BioPanel({ tool, onResult }: BioPanelProps) {
       message.warning('请先粘贴数据');
       return;
     }
-    parse(pastedText);
-    message.success('数据解析成功');
+    const ok = parse(pastedText);
+    if (ok) {
+      message.success('数据解析成功');
+    } else {
+      message.error('数据解析失败');
+    }
   }, [pastedText, parse]);
 
   const handleLoadDemo = useCallback(() => {
@@ -361,8 +377,12 @@ export default function BioPanel({ tool, onResult }: BioPanelProps) {
     const demoData = generateDemoData(tool.key);
     const csvText = convertToCSV(demoData);
     setPastedText(csvText);
-    parse(csvText);
-    message.success('示例数据已加载');
+    const ok = parse(csvText);
+    if (ok) {
+      message.success('示例数据已加载');
+    } else {
+      message.error('示例数据解析失败');
+    }
   }, [tool, parse]);
 
   // ---- Parameter value change ----

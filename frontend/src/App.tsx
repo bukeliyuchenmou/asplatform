@@ -16,6 +16,10 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const FrontendLayout = lazy(() => import('./layouts/FrontendLayout'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const OAuthCallbackPage = lazy(() => import('./pages/OAuthCallbackPage'));
+const PaymentReturnPage = lazy(() => import('./pages/PaymentReturnPage'));
+const PaymentPurchasePage = lazy(() => import('./pages/PaymentPurchasePage'));
+const PaymentUpgradePage = lazy(() => import('./pages/PaymentUpgradePage'));
 
 // ---------------------------------------------------------------------------
 // App
@@ -38,6 +42,10 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+                  <Route path="/payment/return" element={<PaymentReturnPage />} />
+                  <Route path="/payment/purchase" element={<PaymentPurchasePage />} />
+                  <Route path="/payment/upgrade" element={<PaymentUpgradePage />} />
                   <Route path="/admin/*" element={<AdminLayout />} />
                   <Route path="/frontend/*" element={<FrontendLayout />} />
                   <Route path="*" element={<NotFoundPage />} />

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -24,6 +24,7 @@ from utils.auth import get_current_admin, check_permission
 from utils.security import get_password_hash
 from database import get_db
 from models import UserGroup, AdminUser, TokenRecord
+from utils.timezone import local_now, to_local_naive
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -113,7 +114,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: Admin
 def create_token(item: TokenCreate, db: Session = Depends(get_db), current_user: AdminUser = Depends(get_current_admin)):
     check_permission(current_user, "token:write")
     new_token_str = secrets.token_hex(16)
-    expires = datetime.now(timezone.utc) + timedelta(days=item.expires_days) if item.expires_days else None
+    expires = local_now() + timedelta(days=item.expires_days) if item.expires_days else None
     perms_str = ",".join(item.permissions) if isinstance(item.permissions, list) else item.permissions
     db_token = TokenRecord(token=new_token_str, expires_at=expires, ai_quota=item.ai_quota, permissions=perms_str)
     db.add(db_token)
@@ -127,7 +128,7 @@ def create_tokens_batch(item: TokenBatchCreate, db: Session = Depends(get_db), c
     check_permission(current_user, "token:write")
     count = min(item.count, 100)
     perms_str = ",".join(item.permissions) if isinstance(item.permissions, list) else item.permissions
-    expires = datetime.now(timezone.utc) + timedelta(days=item.expires_days) if item.expires_days else None
+    expires = local_now() + timedelta(days=item.expires_days) if item.expires_days else None
 
     new_tokens = []
     for _ in range(count):
@@ -179,7 +180,7 @@ def delete_token(token_id: int, db: Session = Depends(get_db), current_user: Adm
 
 
 @router.put("/tokens/{token_id}")
-def update_token(token_id: int, request: dict = None, quota: int = None, is_active: bool = None, db: Session = Depends(get_db), current_user: AdminUser = Depends(get_current_admin)):
+def update_token(token_id: int, request: dict = None, quota: float = None, is_active: bool = None, db: Session = Depends(get_db), current_user: AdminUser = Depends(get_current_admin)):
     check_permission(current_user, "token:write")
     token = db.query(TokenRecord).filter(TokenRecord.id == token_id).first()
     if not token:
@@ -210,7 +211,7 @@ def update_token(token_id: int, request: dict = None, quota: int = None, is_acti
             token.expires_at = None
         else:
             try:
-                token.expires_at = datetime.fromisoformat(exp_val)
+                token.expires_at = to_local_naive(datetime.fromisoformat(exp_val))
             except:
                 pass
     if ai_quota is not None:

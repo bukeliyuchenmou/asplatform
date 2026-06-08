@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import { Card, Input, Button, Spin, Result, Space, Typography } from 'antd';
-import { KeyOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { Card, Button, Spin, Result, Space, Typography } from 'antd';
+import { LoginOutlined } from '@ant-design/icons';
 import { useServiceToken } from '../../hooks/useServiceToken';
+import { authApi } from '../../services/authApi';
+import { getOAuthOpenid, getOAuthUserToken } from '../../utils/oauthSession';
 
 const { Text, Title } = Typography;
 
@@ -13,54 +15,48 @@ export interface ServiceTokenGuardProps {
 }
 
 // ---------------------------------------------------------------------------
-// ServiceTokenGuard — full-page token verification component
+// ServiceTokenGuard — full-page account authorization component
 //
 // Three states:
-//   1. No token       → full-page overlay with input + "验证并进入" button
+//   1. No token       → full-page overlay with account authorization button
 //   2. Verifying      → centered Spin
 //   3. Valid          → renders children
-//   4. Invalid        → error Result with retry option
+//   4. Invalid        → error Result with account login / purchase options
 // ---------------------------------------------------------------------------
 export function ServiceTokenGuard({ children }: ServiceTokenGuardProps) {
-  const { serviceToken, isValid, isVerifying, verifyToken, clearToken } =
+  const { serviceToken, tokenInfo, isValid, isVerifying, clearToken } =
     useServiceToken();
 
-  const [inputValue, setInputValue] = useState<string>('');
   const [localError, setLocalError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isOAuthStarting, setIsOAuthStarting] = useState<boolean>(false);
+  const hasOAuthSession = Boolean(getOAuthOpenid() && getOAuthUserToken());
 
-  // -----------------------------------------------------------------------
-  // Handle token submission
-  // -----------------------------------------------------------------------
-  const handleSubmit = async (): Promise<void> => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) {
-      setLocalError('请输入有效的令牌。');
-      return;
-    }
-
+  const handleAccountLogin = async (): Promise<void> => {
     setLocalError(null);
-    setIsSubmitting(true);
-
+    setIsOAuthStarting(true);
     try {
-      const success = await verifyToken(trimmed);
-      if (!success) {
-        setLocalError('令牌验证失败，请检查后重试。');
-      }
+      const data = await authApi.startOAuthLogin();
+      window.location.href = data.authorize_url;
     } catch {
-      setLocalError('验证服务暂不可用，请稍后重试。');
-    } finally {
-      setIsSubmitting(false);
+      setLocalError('账号登录入口暂不可用，请稍后重试。');
+      setIsOAuthStarting(false);
     }
   };
 
-  // -----------------------------------------------------------------------
-  // Handle Enter key
-  // -----------------------------------------------------------------------
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter') {
-      handleSubmit();
+  const handlePurchase = (): void => {
+    if (tokenInfo?.purchase_url) {
+      window.location.href = tokenInfo.purchase_url;
+      return;
     }
+    if (hasOAuthSession) {
+      window.location.href = '/payment/purchase';
+      return;
+    }
+    void handleAccountLogin();
+  };
+
+  const handleContinuePurchase = (): void => {
+    window.location.href = '/payment/purchase';
   };
 
   // -----------------------------------------------------------------------
@@ -77,22 +73,24 @@ export function ServiceTokenGuard({ children }: ServiceTokenGuardProps) {
           background: '#f0f2f5',
         }}
       >
-        <Spin size="large" tip="正在验证令牌..." />
+        <Spin size="large" tip="正在验证登录状态..." />
       </div>
     );
   }
 
   // -----------------------------------------------------------------------
-  // Token is valid — render children
+  // Login state is valid — render children
   // -----------------------------------------------------------------------
   if (serviceToken && isValid) {
     return <>{children}</>;
   }
 
   // -----------------------------------------------------------------------
-  // Token was invalid / expired — show error with retry
+  // Login state was invalid / expired — show error with retry
   // -----------------------------------------------------------------------
   if (serviceToken && !isValid && !isVerifying) {
+    const isExpired = tokenInfo?.reason === 'token_expired';
+
     return (
       <div
         style={{
@@ -107,19 +105,37 @@ export function ServiceTokenGuard({ children }: ServiceTokenGuardProps) {
         <Card style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
           <Result
             status="warning"
-            title="令牌已失效"
-            subTitle="您的令牌可能已过期或被停用，请重新输入有效的令牌以继续使用。"
+            title={isExpired ? '服务已到期' : '登录状态已失效'}
+            subTitle={
+              isExpired
+                ? '当前服务已过期，请购买或续费后继续使用。'
+                : '您的登录状态可能已失效或被停用，请重新授权账号登录后继续使用。'
+            }
             extra={
-              <Button
-                type="primary"
-                onClick={() => {
-                  clearToken();
-                  setInputValue('');
-                  setLocalError(null);
-                }}
-              >
-                重新输入令牌
-              </Button>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {isExpired && (
+                  <Button
+                    type="primary"
+                    icon={<LoginOutlined />}
+                    loading={isOAuthStarting}
+                    onClick={handlePurchase}
+                  >
+                    购买或续费
+                  </Button>
+                )}
+                <Button
+                  type={isExpired ? 'default' : 'primary'}
+                  icon={<LoginOutlined />}
+                  loading={isOAuthStarting}
+                  onClick={() => {
+                    clearToken();
+                    setLocalError(null);
+                    void handleAccountLogin();
+                  }}
+                >
+                  重新授权账号
+                </Button>
+              </Space>
             }
           />
         </Card>
@@ -128,7 +144,7 @@ export function ServiceTokenGuard({ children }: ServiceTokenGuardProps) {
   }
 
   // -----------------------------------------------------------------------
-  // No token — full-page overlay with input
+  // No token — full-page account authorization
   // -----------------------------------------------------------------------
   return (
     <div
@@ -155,57 +171,47 @@ export function ServiceTokenGuard({ children }: ServiceTokenGuardProps) {
           size="large"
           style={{ width: '100%', textAlign: 'center' }}
         >
-          {/* Icon */}
-          <div>
-            <KeyOutlined
-              style={{ fontSize: 48, color: '#1a1a2e', marginBottom: 16 }}
-            />
-          </div>
+          <LoginOutlined
+            style={{ fontSize: 48, color: '#1a1a2e', marginBottom: 16 }}
+          />
 
-          {/* Title */}
           <Title level={3} style={{ margin: 0 }}>
             学术辅助平台
           </Title>
 
-          {/* Description */}
           <Text type="secondary">
-            请输入系统分配给您的有效令牌以继续使用学术辅助功能。
+            请使用账号授权登录后继续使用学术辅助功能。
           </Text>
 
-          {/* Input */}
-          <Input
-            size="large"
-            placeholder="请输入您的服务令牌"
-            prefix={<KeyOutlined style={{ color: '#bfbfbf' }} />}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              setLocalError(null);
-            }}
-            onKeyDown={handleKeyDown}
-            status={localError ? 'error' : undefined}
-            allowClear
-          />
-
-          {/* Error */}
           {localError && (
             <Text type="danger" style={{ display: 'block' }}>
               {localError}
             </Text>
           )}
 
-          {/* Submit button */}
           <Button
             type="primary"
             size="large"
             block
-            icon={<ArrowRightOutlined />}
-            loading={isSubmitting}
-            onClick={handleSubmit}
+            icon={<LoginOutlined />}
+            loading={isOAuthStarting}
+            onClick={handleAccountLogin}
             style={{ height: 48 }}
           >
-            验证并进入
+            授权账号登录
           </Button>
+
+          {hasOAuthSession && (
+            <Button
+              type="primary"
+              size="large"
+              block
+              loading={isOAuthStarting}
+              onClick={handleContinuePurchase}
+            >
+              继续购买
+            </Button>
+          )}
         </Space>
       </Card>
     </div>

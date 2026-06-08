@@ -1,0 +1,42 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-python:3.12-slim}
+        APT_MIRROR: ${APT_MIRROR:-mirrors.ustc.edu.cn}
+        PYPI_INDEX_URL: ${PYPI_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+    container_name: asplatform-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8002}:8002"
+    volumes:
+      - ./deploy/config.docker.yaml:/app/config.yaml:ro
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    container_name: asplatform-mysql
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-asplatform}
+      MYSQL_USER: ${MYSQL_USER:-asplatform}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-asplatform_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      TZ: Asia/Shanghai
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

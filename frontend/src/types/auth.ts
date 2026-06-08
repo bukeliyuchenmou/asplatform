@@ -25,4 +25,20 @@ export interface VerifyTokenResponse {
   used_quota?: number;
   expires_at?: string;
   detail?: string;
+  reason?: 'invalid_token' | 'token_expired' | 'token_inactive' | 'permission_denied';
+  source?: 'manual' | 'oauth';
+  entitlement_level?: 'experience' | 'basic' | 'pro' | string | null;
+  purchase_url?: string;
+}
+
+export interface OAuthExchangeResponse {
+  openid: string;
+  user_token?: string;
+  status?: 'ok' | 'purchase_required';
+  service_token?: string;
+  permissions?: string;
+  ai_quota?: number;
+  used_quota?: number;
+  expires_at?: string;
+  purchase_url?: string;
 }

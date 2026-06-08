@@ -1,10 +1,11 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Spin, List, message, Popconfirm } from 'antd';
+import { Layout, Menu, Button, Typography, Spin, List, Result, Space } from 'antd';
 import {
   ExperimentOutlined, EditOutlined, BookOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined,
-  FileTextOutlined, PlusOutlined, DeleteOutlined, ToolOutlined,
+  FileTextOutlined, PlusOutlined, ToolOutlined,
+  ShoppingCartOutlined,
 } from '@ant-design/icons';
 import ServiceTokenGuard from '../components/common/ServiceTokenGuard';
 import TokenQuotaBar from '../components/common/TokenQuotaBar';
@@ -19,6 +20,7 @@ const BioAnalysisWorkbench = lazy(() => import('../pages/bio/BioAnalysisWorkbenc
 const AIWritingWorkbench = lazy(() => import('../pages/writing/AIWritingWorkbench'));
 const LiteratureCompareWorkbench = lazy(() => import('../pages/literature/LiteratureCompareWorkbench'));
 const AITools = lazy(() => import('../pages/AITools'));
+const PaymentOrdersPage = lazy(() => import('../pages/PaymentOrdersPage'));
 
 function PageFallback() {
   return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}><Spin /></div>;
@@ -29,6 +31,7 @@ const menuItems = [
   { key: 'writing', icon: <EditOutlined />, label: 'AI 写作', path: '/frontend/writing' },
   { key: 'ai-tools', icon: <ToolOutlined />, label: 'AI 工具', path: '/frontend/ai-tools' },
   { key: 'lit-compare', icon: <BookOutlined />, label: '文献分析', path: '/frontend/lit-compare' },
+  { key: 'orders', icon: <ShoppingCartOutlined />, label: '订单记录', path: '/frontend/orders' },
 ];
 
 function getKey(pathname: string) {
@@ -46,6 +49,7 @@ function FrontendLayoutInner() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   const isWriting = location.pathname.startsWith('/frontend/writing');
+  const canUseBio = tokenInfo?.source !== 'oauth' || tokenInfo?.entitlement_level === 'pro';
 
   // Load projects
   const loadProjectList = async () => {
@@ -143,13 +147,40 @@ function FrontendLayoutInner() {
             <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)} style={{ fontSize: 16, width: 40, height: 40 }} />
             <TokenQuotaBar total={tokenInfo?.ai_quota ?? 0} used={tokenInfo?.used_quota ?? 0} />
+            <Button
+              type="primary"
+              icon={<ShoppingCartOutlined />}
+              onClick={() => navigate('/payment/upgrade')}
+            >
+              升级产品
+            </Button>
           </div>
-          <Button type="text" icon={<LogoutOutlined />} onClick={() => { clearToken(); navigate('/'); }} danger>退出</Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button type="text" icon={<LogoutOutlined />} onClick={() => { clearToken(); navigate('/'); }} danger>退出</Button>
+          </div>
         </Header>
         <Content style={{ margin: 24, padding: 24, background: '#fff', borderRadius: 8, minHeight: 280 }}>
           <Suspense fallback={<PageFallback />}>
             <Routes>
-              <Route path="bio" element={<BioAnalysisWorkbench />} />
+              <Route path="bio" element={
+                canUseBio ? (
+                  <BioAnalysisWorkbench />
+                ) : (
+                  <Result
+                    status="warning"
+                    title="生信分析需要高级会员"
+                    subTitle="当前账号套餐暂未开放生信分析，请升级到高级会员后继续使用。"
+                    extra={
+                      <Space>
+                        <Button onClick={() => navigate('/frontend/orders')}>查看订单</Button>
+                        <Button type="primary" onClick={() => navigate('/payment/upgrade')}>
+                          升级到高级会员
+                        </Button>
+                      </Space>
+                    }
+                  />
+                )
+              } />
               <Route path="writing" element={
                 <AIWritingWorkbench
                   projects={projects}
@@ -165,6 +196,7 @@ function FrontendLayoutInner() {
               } />
               <Route path="ai-tools" element={<AITools />} />
               <Route path="lit-compare" element={<LiteratureCompareWorkbench />} />
+              <Route path="orders" element={<PaymentOrdersPage />} />
               <Route path="/" element={<Navigate to="bio" replace />} />
               <Route path="*" element={<Navigate to="bio" replace />} />
             </Routes>

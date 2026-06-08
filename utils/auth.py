@@ -1,12 +1,13 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
 
 from config_loader import get
 from database import get_db
+from utils.timezone import local_now, to_local_naive
 
 # JWT Configuration (with hot-reload support)
 SECRET_KEY = get('jwt.secret_key', 'YOUR_SUPER_SECRET_KEY')
@@ -101,10 +102,8 @@ def verify_token(token: str, db: Session, required_permission: str = None):
     if not record.is_active:
         raise HTTPException(status_code=403, detail="Token is inactive")
     if record.expires_at:
-        expires_at = record.expires_at
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if expires_at < datetime.now(timezone.utc):
+        expires_at = to_local_naive(record.expires_at)
+        if expires_at < local_now():
             raise HTTPException(status_code=403, detail="Token expired")
     permissions = [
         permission.strip()

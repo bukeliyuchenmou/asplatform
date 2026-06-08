@@ -61,6 +61,25 @@ ai:
   max_tokens: 32000
 
 # ---------------------------------------------------------------------------
+# 外部 OAuth 登录
+# ---------------------------------------------------------------------------
+oauth:
+  base_url: "https://curyian.com"
+  payment_base_url: "https://www.keyan.asia"
+  client_id: "your_client_id"
+  client_secret: "your_client_secret"
+  redirect_uri: "http://localhost:8002/oauth/callback"
+  payment_return_url: "http://localhost:5173/payment/return"
+  products_path: "/oauth/as-platform-product"
+  trust_env: false
+  purchase_url: ""
+  auto_provision_token: false
+  user_session_expires_hours: 24
+  default_ai_quota: 1000000.0
+  default_permissions: "bio,ai"
+  default_token_expires_days: null
+
+# ---------------------------------------------------------------------------
 # 服务器
 # ---------------------------------------------------------------------------
 server:

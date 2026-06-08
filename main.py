@@ -157,6 +157,8 @@ def read_root(request: Request):
 # API Routers
 # =============================================================================
 from api.auth import router as auth_router
+from api.oauth import router as oauth_router
+from api.payment import router as payment_router
 from api.admin import router as admin_router
 from api.ai import router as ai_router
 from api.topic import router as topic_router
@@ -165,6 +167,8 @@ from api.literature import lit_router, enhance_router, lit_compare_router
 from api.bio import router as bio_router
 
 app.include_router(auth_router)
+app.include_router(oauth_router)
+app.include_router(payment_router)
 app.include_router(admin_router)
 app.include_router(ai_router)
 app.include_router(topic_router)

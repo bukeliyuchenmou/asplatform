@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, field_serializer
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 class Token(BaseModel):
@@ -9,7 +9,7 @@ class Token(BaseModel):
 
 
 class TokenCreate(BaseModel):
-    ai_quota: int = 1000000
+    ai_quota: float = 1000000.0
     permissions: str | List[str] = "bio,ai"
     expires_days: Optional[int] = 30
 
@@ -30,8 +30,8 @@ class TokenResponse(BaseModel):
     created_at: datetime
     expires_at: Optional[datetime]
     is_active: bool
-    ai_quota: int
-    used_quota: int
+    ai_quota: float
+    used_quota: float
     permissions: str
 
     @field_serializer('created_at', 'expires_at')
@@ -39,9 +39,4 @@ class TokenResponse(BaseModel):
         if dt is None:
             return None
 
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        else:
-            dt = dt.astimezone(timezone.utc)
-
-        return dt.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+        return dt.isoformat(timespec='milliseconds')

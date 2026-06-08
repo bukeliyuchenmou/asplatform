@@ -383,7 +383,7 @@ export default function TokenManagement() {
           </Form.Item>
 
           <Form.Item name="ai_quota" label="AI 配额">
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="配额数量" />
+            <InputNumber min={0} step={0.1} style={{ width: '100%' }} placeholder="配额数量" />
           </Form.Item>
 
           <Form.Item name="permissions" label="权限">
@@ -461,7 +461,7 @@ export default function TokenManagement() {
       >
         <Form form={editForm} layout="vertical">
           <Form.Item name="ai_quota" label="AI 配额">
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber min={0} step={0.1} style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item name="is_active" label="启用" valuePropName="checked">

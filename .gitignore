@@ -18,6 +18,8 @@ venv/
 
 # Config with secrets
 config.yaml
+config.docker.local.yaml
+deploy/config.local-mysql.docker.yaml
 
 # claude
 .claude/

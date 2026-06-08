@@ -12,7 +12,9 @@ from schemas.admin import AdminUserResponse, PasswordChange
 from utils.auth import create_access_token, get_current_admin, verify_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from utils.security import verify_password, get_password_hash
 from database import get_db
-from models import AdminUser
+from models import AdminUser, TokenRecord
+from config_loader import get
+from utils.entitlements import get_token_entitlement_level
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -46,12 +48,35 @@ async def verify_service_token_endpoint(request: dict, db: Session = Depends(get
     if not token: raise HTTPException(status_code=400, detail="Token is required")
     try:
         record = verify_token(token, db)
+        entitlement_level = get_token_entitlement_level(db, record)
         return {
             "valid": True,
             "permissions": record.permissions,
             "ai_quota": record.ai_quota,
             "used_quota": record.used_quota,
-            "expires_at": record.expires_at
+            "expires_at": record.expires_at,
+            "source": "oauth" if record.external_user_id else "manual",
+            "entitlement_level": entitlement_level,
         }
     except HTTPException as e:
-        return {"valid": False, "detail": e.detail}
+        reason = "invalid_token"
+        status_detail = e.detail
+        if status_detail == "Token expired":
+            reason = "token_expired"
+        elif status_detail == "Token is inactive":
+            reason = "token_inactive"
+        elif status_detail == "Permission denied":
+            reason = "permission_denied"
+
+        record = db.query(TokenRecord).filter(TokenRecord.token == token).first()
+
+        entitlement_level = get_token_entitlement_level(db, record) if record else None
+
+        return {
+            "valid": False,
+            "detail": status_detail,
+            "reason": reason,
+            "source": "oauth" if record and record.external_user_id else "manual",
+            "entitlement_level": entitlement_level,
+            "purchase_url": get("oauth.purchase_url", ""),
+        }

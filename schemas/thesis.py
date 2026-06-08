@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, field_serializer
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 class ThesisCreate(BaseModel):
@@ -97,9 +97,4 @@ class ThesisProjectResponse(BaseModel):
         if dt is None:
             return None
 
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        else:
-            dt = dt.astimezone(timezone.utc)
-
-        return dt.isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+        return dt.isoformat(timespec='milliseconds')

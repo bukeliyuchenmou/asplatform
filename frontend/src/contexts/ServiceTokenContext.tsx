@@ -44,6 +44,7 @@ export function ServiceTokenProvider({ children }: { children: ReactNode }) {
   const verifyToken = useCallback(
     async (token: string): Promise<boolean> => {
       setIsVerifying(true);
+      setServiceTokenState(token);
       try {
         const info = await authApi.verifyServiceToken(token);
         setTokenInfo(info);
@@ -56,6 +57,7 @@ export function ServiceTokenProvider({ children }: { children: ReactNode }) {
       } catch {
         setTokenInfo(null);
         setIsValid(false);
+        setServiceTokenState(null);
         return false;
       } finally {
         setIsVerifying(false);

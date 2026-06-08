@@ -89,7 +89,7 @@ const AIWritingWorkbench: FC<Props> = ({ projects, selectedProjectId, onProjectS
 
   const renderStepContent = () => {
     if (!serviceToken) {
-      return <Result status="warning" title="需要服务令牌" subTitle="请先输入有效的服务令牌" />;
+      return <Result status="warning" title="需要登录" subTitle="请先授权账号登录" />;
     }
 
     switch (currentStep) {

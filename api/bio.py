@@ -77,8 +77,10 @@ async def analyze_bio_data(request: AnalyzeRequest, db: Session = Depends(get_db
             return {"plot_data": plot_data, "stats": {}}
 
         elif analysis_type == 'histogram':
-            val_col = config.get('valueColumn')
+            val_col = config.get('valueColumn') or config.get('xColumn')
             if not val_col: raise HTTPException(status_code=400, detail="请选择数值列")
+            if val_col not in df.columns: raise HTTPException(status_code=400, detail="数值列不存在")
+            if not pd.api.types.is_numeric_dtype(df[val_col]): raise HTTPException(status_code=400, detail="请选择数值列")
             plot_data = [{"x": df[val_col].dropna().tolist(), "type": "histogram", "name": val_col}]
             return {"plot_data": plot_data, "stats": {}}
 

@@ -4,6 +4,7 @@ import type {
   LoginResponse,
   AdminUser,
   VerifyTokenResponse,
+  OAuthExchangeResponse,
 } from '../types/auth';
 import { getAdminToken, clearAdminToken } from '../utils/token';
 
@@ -28,7 +29,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const requestUrl = error.config?.url ?? '';
+    const isOAuthRequest = requestUrl.startsWith('/oauth/');
+
+    if (error.response?.status === 401 && !isOAuthRequest) {
       clearAdminToken();
       // Only redirect if not already on the login page
       if (window.location.pathname !== '/login') {
@@ -65,6 +69,21 @@ export const authApi = {
     const response = await api.post<VerifyTokenResponse>(
       '/auth/verify-service-token',
       { token },
+    );
+    return response.data;
+  },
+
+  async startOAuthLogin(): Promise<{ authorize_url: string }> {
+    const response = await api.get<{ authorize_url: string }>('/oauth/start');
+    return response.data;
+  },
+
+  async exchangeOAuthCode(
+    code: string,
+  ): Promise<OAuthExchangeResponse> {
+    const response = await api.post<OAuthExchangeResponse>(
+      '/oauth/exchange',
+      { code },
     );
     return response.data;
   },
