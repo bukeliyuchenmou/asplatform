@@ -38,6 +38,7 @@ class TokenRecord(Base):
     permissions = Column(String(255), default="all") # Comma separated permissions: "bio,ai"
     
     projects = relationship("ThesisProject", back_populates="token_owner")
+    video_search_conversations = relationship("VideoSearchConversation", back_populates="token_owner")
 
 class ExternalUser(Base):
     __tablename__ = "external_users"
@@ -130,3 +131,40 @@ class ThesisStep(Base):
     created_at = Column(DateTime(timezone=True), default=local_now)
     
     project = relationship("ThesisProject", back_populates="steps")
+
+class VideoSearchConversation(Base):
+    __tablename__ = "video_search_conversations"
+    id = Column(Integer, primary_key=True, index=True)
+    token_id = Column(Integer, ForeignKey("tokens.id"), nullable=True, index=True)
+    admin_id = Column(Integer, ForeignKey("admin_users.id"), nullable=True, index=True)
+    title = Column(String(255))
+    prompt_tokens = Column(Integer, default=0)
+    completion_tokens = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=local_now)
+    updated_at = Column(DateTime(timezone=True), default=local_now, onupdate=local_now)
+
+    token_owner = relationship("TokenRecord", back_populates="video_search_conversations")
+    admin_owner = relationship("AdminUser")
+    messages = relationship(
+        "VideoSearchMessage",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="VideoSearchMessage.id",
+    )
+
+class VideoSearchMessage(Base):
+    __tablename__ = "video_search_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("video_search_conversations.id"), index=True)
+    role = Column(String(32), index=True)
+    content = Column(Text, default="")
+    tool_name = Column(String(128), nullable=True)
+    tool_arguments = Column(Text, nullable=True)
+    video_result = Column(Text, nullable=True)
+    prompt_tokens = Column(Integer, default=0)
+    completion_tokens = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=local_now)
+
+    conversation = relationship("VideoSearchConversation", back_populates="messages")

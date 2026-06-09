@@ -1,5 +1,6 @@
 import httpx
-from typing import List
+import json
+from typing import AsyncIterator, List
 
 
 class AIService:
@@ -60,6 +61,102 @@ class AIService:
                     "completion_tokens": 0,
                     "total_tokens": 0
                 }
+
+    async def chat_completion_stream(
+        self,
+        messages: list,
+        temperature: float = 0.7,
+        tools: list | None = None,
+        tool_choice: str | dict | None = "auto",
+    ) -> AsyncIterator[dict]:
+        if self.api_key == "your-api-key-here":
+            yield {
+                "type": "content",
+                "content": "当前未配置 AI API Key，无法发起流式 tools 请求。",
+            }
+            return
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = tool_choice or "auto"
+
+        tool_calls: dict[int, dict] = {}
+
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+
+                    data = line.removeprefix("data:").strip()
+                    if data == "[DONE]":
+                        break
+
+                    try:
+                        chunk = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+
+                    choice = (chunk.get("choices") or [{}])[0]
+                    usage = chunk.get("usage")
+                    if usage:
+                        yield {
+                            "type": "usage",
+                            "usage": {
+                                "prompt_tokens": usage.get("prompt_tokens", 0),
+                                "completion_tokens": usage.get("completion_tokens", 0),
+                                "total_tokens": usage.get("total_tokens", 0),
+                            },
+                        }
+
+                    delta = choice.get("delta") or {}
+                    content = delta.get("content")
+                    if content:
+                        yield {"type": "content", "content": content}
+
+                    for tool_call in delta.get("tool_calls") or []:
+                        index = tool_call.get("index", 0)
+                        current = tool_calls.setdefault(
+                            index,
+                            {
+                                "id": "",
+                                "type": "function",
+                                "function": {"name": "", "arguments": ""},
+                            },
+                        )
+                        if tool_call.get("id"):
+                            current["id"] += tool_call["id"]
+                        if tool_call.get("type"):
+                            current["type"] = tool_call["type"]
+
+                        function_delta = tool_call.get("function") or {}
+                        if function_delta.get("name"):
+                            current["function"]["name"] += function_delta["name"]
+                        if function_delta.get("arguments"):
+                            current["function"]["arguments"] += function_delta["arguments"]
+
+        if tool_calls:
+            yield {
+                "type": "tool_calls",
+                "tool_calls": [tool_calls[index] for index in sorted(tool_calls)],
+            }
 
     async def generate_research_topics(self, discipline: str, research_direction: str, keywords: List[str], count: int = 5):
         prompt = f"""你是一位顶尖的学术导师。请结合最新的学术热点和期刊发表趋势，根据以下信息生成 {count} 个具有高度学术价值、创新性且合规可行的论著选题：

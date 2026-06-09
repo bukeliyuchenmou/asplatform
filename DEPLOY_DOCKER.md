@@ -70,6 +70,81 @@ uvicorn main:app --host 0.0.0.0 --port 8002
 http://localhost:8002
 ```
 
+## Release 镜像运行
+
+如果线上只运行 app 容器，MySQL 使用外部数据库或已经单独部署的数据库，可以用 release 镜像方式发布。
+
+发布前先确保前端静态产物已经同步到后端服务目录：
+
+```text
+frontend/dist/* -> html/
+```
+
+准备一份只在服务器保存的配置文件，例如：
+
+```text
+/opt/asplatform/config.yaml
+```
+
+其中 `database` 应指向线上 MySQL，例如：
+
+```yaml
+database:
+  type: mysql
+  url: ""
+  host: "your-mysql-host"
+  port: 3306
+  database: "asplatform"
+  username: "asplatform"
+  password: "your-password"
+```
+
+构建 release 镜像：
+
+```bash
+docker build \
+  --build-arg BASE_IMAGE=python:3.12-slim \
+  -t asplatform:release .
+```
+
+运行 release 容器：
+
+```bash
+docker run -d \
+  --name asplatform-app \
+  --restart unless-stopped \
+  -p 8002:8002 \
+  -v /opt/asplatform/config.yaml:/app/config.yaml:ro \
+  asplatform:release
+```
+
+如果容器需要访问宿主机上的 MySQL，可以把 `database.host` 写成 `host.docker.internal`，并在 Linux 服务器上运行时增加：
+
+```bash
+--add-host host.docker.internal:host-gateway
+```
+
+完整示例：
+
+```bash
+docker run -d \
+  --name asplatform-app \
+  --restart unless-stopped \
+  --add-host host.docker.internal:host-gateway \
+  -p 8002:8002 \
+  -v /opt/asplatform/config.yaml:/app/config.yaml:ro \
+  asplatform:release
+```
+
+发布新版本时：
+
+```bash
+docker stop asplatform-app
+docker rm asplatform-app
+docker build -t asplatform:release .
+docker run -d --name asplatform-app --restart unless-stopped -p 8002:8002 -v /opt/asplatform/config.yaml:/app/config.yaml:ro asplatform:release
+```
+
 ## 本地开发模式
 
 如果开发时使用宿主机上的 MySQL，而不是 compose 里的 MySQL，可以使用开发 compose 文件：

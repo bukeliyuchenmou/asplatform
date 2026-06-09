@@ -41,12 +41,13 @@ export default function PaymentOrdersPage() {
       setIsLoading(false);
       return;
     }
+    const validToken = token;
 
     async function loadOrders() {
       setIsLoading(true);
       setError('');
       try {
-        setOrders(await listPaymentOrders(token));
+        setOrders(await listPaymentOrders(validToken));
       } catch {
         setError('订单记录加载失败');
       } finally {

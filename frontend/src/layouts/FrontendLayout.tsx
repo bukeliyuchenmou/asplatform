@@ -5,7 +5,7 @@ import {
   ExperimentOutlined, EditOutlined, BookOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined,
   FileTextOutlined, PlusOutlined, ToolOutlined,
-  ShoppingCartOutlined,
+  ShoppingCartOutlined, VideoCameraOutlined,
 } from '@ant-design/icons';
 import ServiceTokenGuard from '../components/common/ServiceTokenGuard';
 import TokenQuotaBar from '../components/common/TokenQuotaBar';
@@ -20,6 +20,7 @@ const BioAnalysisWorkbench = lazy(() => import('../pages/bio/BioAnalysisWorkbenc
 const AIWritingWorkbench = lazy(() => import('../pages/writing/AIWritingWorkbench'));
 const LiteratureCompareWorkbench = lazy(() => import('../pages/literature/LiteratureCompareWorkbench'));
 const AITools = lazy(() => import('../pages/AITools'));
+const VideoSearchExamplePage = lazy(() => import('../pages/VideoSearchExamplePage'));
 const PaymentOrdersPage = lazy(() => import('../pages/PaymentOrdersPage'));
 
 function PageFallback() {
@@ -30,6 +31,7 @@ const menuItems = [
   { key: 'bio', icon: <ExperimentOutlined />, label: '生信分析', path: '/frontend/bio' },
   { key: 'writing', icon: <EditOutlined />, label: 'AI 写作', path: '/frontend/writing' },
   { key: 'ai-tools', icon: <ToolOutlined />, label: 'AI 工具', path: '/frontend/ai-tools' },
+  { key: 'video-search', icon: <VideoCameraOutlined />, label: '调用视频', path: '/frontend/video-search' },
   { key: 'lit-compare', icon: <BookOutlined />, label: '文献分析', path: '/frontend/lit-compare' },
   { key: 'orders', icon: <ShoppingCartOutlined />, label: '订单记录', path: '/frontend/orders' },
 ];
@@ -49,7 +51,7 @@ function FrontendLayoutInner() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   const isWriting = location.pathname.startsWith('/frontend/writing');
-  const canUseBio = tokenInfo?.source !== 'oauth' || tokenInfo?.entitlement_level === 'pro';
+  const canUseProFeature = tokenInfo?.source !== 'oauth' || tokenInfo?.entitlement_level === 'pro';
 
   // Load projects
   const loadProjectList = async () => {
@@ -79,6 +81,22 @@ function FrontendLayoutInner() {
     setSelectedProjectId(null);
   };
 
+  const renderProRequired = (featureName: string) => (
+    <Result
+      status="warning"
+      title={`${featureName}需要高级会员`}
+      subTitle={`当前账号套餐暂未开放${featureName}，请升级到高级会员后继续使用。`}
+      extra={
+        <Space>
+          <Button onClick={() => navigate('/frontend/orders')}>查看订单</Button>
+          <Button type="primary" onClick={() => navigate('/payment/upgrade')}>
+            升级到高级会员
+          </Button>
+        </Space>
+      }
+    />
+  );
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
@@ -100,7 +118,7 @@ function FrontendLayoutInner() {
 
         {/* Project list — only on writing route, not collapsed */}
         {isWriting && !collapsed && (
-          <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8 }}>
+          <div className={"chat-container"} style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
               <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>项目列表</Text>
               <Button type="text" size="small" icon={<PlusOutlined />}
@@ -163,22 +181,10 @@ function FrontendLayoutInner() {
           <Suspense fallback={<PageFallback />}>
             <Routes>
               <Route path="bio" element={
-                canUseBio ? (
+                canUseProFeature ? (
                   <BioAnalysisWorkbench />
                 ) : (
-                  <Result
-                    status="warning"
-                    title="生信分析需要高级会员"
-                    subTitle="当前账号套餐暂未开放生信分析，请升级到高级会员后继续使用。"
-                    extra={
-                      <Space>
-                        <Button onClick={() => navigate('/frontend/orders')}>查看订单</Button>
-                        <Button type="primary" onClick={() => navigate('/payment/upgrade')}>
-                          升级到高级会员
-                        </Button>
-                      </Space>
-                    }
-                  />
+                  renderProRequired('生信分析')
                 )
               } />
               <Route path="writing" element={
@@ -195,6 +201,13 @@ function FrontendLayoutInner() {
                 />
               } />
               <Route path="ai-tools" element={<AITools />} />
+              <Route path="video-search" element={
+                canUseProFeature ? (
+                  <VideoSearchExamplePage />
+                ) : (
+                  renderProRequired('调用视频')
+                )
+              } />
               <Route path="lit-compare" element={<LiteratureCompareWorkbench />} />
               <Route path="orders" element={<PaymentOrdersPage />} />
               <Route path="/" element={<Navigate to="bio" replace />} />

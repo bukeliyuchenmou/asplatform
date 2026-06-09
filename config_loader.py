@@ -132,6 +132,11 @@ class ConfigManager:
                 'temperature': 0.7,
                 'max_tokens': 4000
             },
+            'video_search': {
+                'base_url': 'https://api.shiyanjia.com',
+                'course_key': '',
+                'timeout': 12
+            },
             'server': {
                 'host': '0.0.0.0',
                 'port': 8000,

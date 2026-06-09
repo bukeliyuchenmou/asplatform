@@ -165,6 +165,7 @@ from api.topic import router as topic_router
 from api.thesis import router as thesis_router
 from api.literature import lit_router, enhance_router, lit_compare_router
 from api.bio import router as bio_router
+from api.video_search import router as video_search_router
 
 app.include_router(auth_router)
 app.include_router(oauth_router)
@@ -177,6 +178,7 @@ app.include_router(lit_router)
 app.include_router(enhance_router)
 app.include_router(lit_compare_router)
 app.include_router(bio_router)
+app.include_router(video_search_router)
 
 
 # =============================================================================

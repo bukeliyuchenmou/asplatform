@@ -28,11 +28,12 @@ export default function PaymentUpgradePage() {
       setIsLoading(false);
       return;
     }
+    const validServiceToken = serviceToken;
 
     async function loadProducts() {
       setIsLoading(true);
       try {
-        const data = await getUpgradeContext(serviceToken);
+        const data = await getUpgradeContext(validServiceToken);
         setCurrentSlug(data.current_slug);
         setProducts(data.products);
       } catch {

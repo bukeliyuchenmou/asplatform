@@ -25,6 +25,29 @@ declare module 'react-plotly.js' {
   export default Plot;
 }
 
+declare module 'plotly.js-dist-min' {
+  export function newPlot(
+    root: HTMLElement,
+    data: Plotly.Data[],
+    layout?: Partial<Plotly.Layout>,
+    config?: Partial<Plotly.Config>,
+  ): Promise<unknown>;
+
+  export function purge(root: HTMLElement): void;
+
+  export const Plots: {
+    resize: (root: HTMLElement) => void;
+  };
+
+  const Plotly: {
+    newPlot: typeof newPlot;
+    purge: typeof purge;
+    Plots: typeof Plots;
+  };
+
+  export default Plotly;
+}
+
 declare namespace Plotly {
   interface Data {
     type?: string;
